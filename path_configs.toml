@@ -1,0 +1,4 @@
+images_path = "./data/mineops_cd_x.npy"
+masks_path = "./data/mineops_cd_y.npy"
+output_path = ""
+model_configs_path = "./configs/"
