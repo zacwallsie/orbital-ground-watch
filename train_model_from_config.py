@@ -1,8 +1,5 @@
 # Import necessary libraries
 import tomllib
-from utils.training_config import (
-    TrainingConfig,
-)  # Make sure this class is implemented as discussed
 import logging
 import utils.logger_visuals as logger_visuals
 from utils.dataset import create_data_loaders
@@ -20,32 +17,12 @@ from tqdm import tqdm
 from utils.dice_score import dice_loss
 import torch.nn.functional as F
 import gc
+from model_managers.snunet_model_manager import SnuNetModelManager
 
 PATH_CONFIGS = "path_configs.toml"
 
-logger = logging.getLogger(__name__)
-warnings.filterwarnings("ignore", category=UserWarning, module="torch")
-
 # Initialize colorama
 init(autoreset=True)
-
-
-def perform_garbage_collection():
-    # Before collection
-    gc.collect()
-    num_collected = (
-        gc.collect()
-    )  # Perform garbage collection and get the number of unreachable objects collected
-    gc_info = (
-        gc.get_stats()
-    )  # Get information about the current state of the garbage collector
-
-    logger.info("♻️ Garbage Collection ♻️")
-    logger.info(f"Objects Collected: {num_collected}")
-    logger.info(
-        f"Garbage Collector Info: {gc_info[-1]}"
-    )  # Info from the last generation
-    logger.info("Memory Cleanup Completed Successfully 🌿")
 
 
 def get_path_configs() -> dict:
