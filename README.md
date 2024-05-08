@@ -9,10 +9,10 @@
     <img src="images/logo-01.png" alt="Logo" width="auto" height="140">
   </a>
 
-<h3 align="center">Geoimage API</h3>
+<h3 align="center">Orbital Vision Stack</h3>
 
   <p align="center">
-    The API service is built using the Flask framework, with Python as the programming language. It is designed to provide a robust and scalable platform for building and deploying RESTful APIs.
+    Welcome to Orbital Vision Stack, a comprehensive repository dedicated to the development and deployment of machine learning models tailored for satellite imagery applications. This repository hosts a range of tools and resources that leverage the unique capabilities of satellite data to address complex challenges through advanced algorithms.
     <br />
     <br />
     <a href="https://github.com/LeSnack/geoimage-application/issues">Report Bug</a>
