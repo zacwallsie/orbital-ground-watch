@@ -5,7 +5,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/LeSnack/geoimage-application">
+  <a href="https://github.com/zacwallsie/orbital-vision-stack">
     <img src="images/logo-01.png" alt="Logo" width="auto" height="140">
   </a>
 
@@ -15,9 +15,9 @@
     Welcome to Orbital Vision Stack, a comprehensive repository dedicated to the development and deployment of machine learning models tailored for satellite imagery applications. This repository hosts a range of tools and resources that leverage the unique capabilities of satellite data to address complex challenges through advanced algorithms.
     <br />
     <br />
-    <a href="https://github.com/LeSnack/geoimage-application/issues">Report Bug</a>
+    <a href="https://github.com/zacwallsie/orbital-vision-stack/issues">Report Bug</a>
     ·
-    <a href="https://github.com/LeSnack/geoimage-application/issues">Request Feature</a>
+    <a href="https://github.com/zacwallsie/orbital-vision-stack/issues">Request Feature</a>
   </p>
 </div>
 
@@ -78,6 +78,6 @@ Don't forget to give the project a star! Thanks again!
 
 Zachary Walls - zachary.walls@geoimage.com
 
-Project Link: [https://github.com/LeSnack/geoimage-application](https://github.com/LeSnack/geoimage-application)
+Project Link: [https://github.com/zacwallsie/orbital-vision-stack](https://github.com/zacwallsie/orbital-vision-stack)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
