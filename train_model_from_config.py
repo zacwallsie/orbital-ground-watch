@@ -4,7 +4,6 @@ import logging
 import utils.logger_visuals as logger_visuals
 from utils.dataset import create_data_loaders
 from colorama import init
-import warnings
 import os
 from torch.utils.tensorboard import SummaryWriter
 import glob
@@ -16,7 +15,6 @@ import torch.nn as nn
 from tqdm import tqdm
 from utils.dice_score import dice_loss
 import torch.nn.functional as F
-import gc
 from model_managers.snunet_model_manager import SnuNetModelManager
 
 PATH_CONFIGS = "path_configs.toml"
