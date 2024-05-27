@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "orbital-vision-stack"
+version = "0.1.0"
+description = "The basis of Geoimage Machine Learning"
+authors = ["Zachary Walls <77221529+zacwallsie@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+numpy = "^1.26.4"
+torch = "^2.3.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

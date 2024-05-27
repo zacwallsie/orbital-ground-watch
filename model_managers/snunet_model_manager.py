@@ -2,7 +2,9 @@ import torch
 import tomllib
 import os
 from models.sunet import SNUNet_ECAM
+from utils.misc_utils import AverageMeter, logits_to_mask
 from abstract_model_manager import AbstractModelManager
+from utils.metric_tool import ConfuseMatrixMeter
 
 
 class SnuNetModelManager(AbstractModelManager):
@@ -16,7 +18,7 @@ class SnuNetModelManager(AbstractModelManager):
         # Generate a unique model name based on configurations
         return f"{self.name}_basechannel-{self.base_channel}_depth-{self.depth}_pretrained-{True if self.pretrained_dir else False}_imgsize-{self.img_size}_lr-{self.learning_rate}_wd-{self.weight_decay}"
 
-    def load_config(self, toml_file_path):
+    def load_model_config(self, toml_file_path):
         # Load model configuration from a TOML file
         with open(toml_file_path, "rb") as f:
             config_data = tomllib.load(f)
@@ -70,13 +72,29 @@ class SnuNetModelManager(AbstractModelManager):
         with torch.no_grad():
             return self.model(X.to(self.device))
 
-    def evaluate(self, X, y):
+    def evaluate(self, test_loader):
         # Evaluate the model performance on the given dataset
-        self.set_mode("eval")
-        with torch.no_grad():
-            predictions = self.model(X.to(self.device))
-            # Assuming some evaluation metric function `evaluate_metric`
-            return evaluate_metric(predictions, y)
+        eval_losses = AverageMeter()
+
+        salEval = ConfuseMatrixMeter(n_class=2)
+
+        for batch in test_loader:
+            with torch.no_grad():
+                batch = tuple(t.to(self.device) for t in batch)
+                X, y = batch
+                predictions = self.model(X.to(self.device))
+                loss = self.criterion(predictions, y)
+                eval_losses.update(loss.item())
+                salEval.add(predictions, y)
+
+        scores = salEval.get_scores()
+        return {
+            "accuracy": scores["accuracy"],
+            "precision": scores["precision"],
+            "recall": scores["recall"],
+            "f1": scores["f1"],
+            "loss": eval_losses.avg,
+        }
 
     def log_metrics(self, metrics):
         # Log metrics during training
@@ -93,9 +111,14 @@ class SnuNetModelManager(AbstractModelManager):
         num_steps,
         losses,
     ):
+        # Assign specific values for this class for training
+        self.criterion = criterion
+        self.optimizer = optimizer
+        self.scheduler = scheduler
+
         # Train the model
         self.set_mode("train")
-        global_step, best_acc = 0, 0
+        best_acc = 0
 
         for step in range(num_steps):
             for batch in train_loader:
@@ -108,14 +131,16 @@ class SnuNetModelManager(AbstractModelManager):
                 optimizer.step()
                 scheduler.step()
                 losses.update(loss.item())
-                global_step += 1
 
-                if global_step % self.eval_every == 0:
+                if step % self.eval_every == 0:
                     metrics = self.evaluate(valid_loader)
                     self.log_metrics(metrics)
                     if metrics["accuracy"] > best_acc:
                         best_acc = metrics["accuracy"]
-                        self.save(os.path.join(self.output_dir, "best_model.pth"))
-                    self.save(os.path.join(self.output_dir, "last_model.pth"))
+                        self.save(
+                            os.path.join(self.output_dir, "best_model_weights.pth")
+                        )
+                    self.save(os.path.join(self.output_dir, "last_model_weights.pth"))
 
+        losses.reset()
         return

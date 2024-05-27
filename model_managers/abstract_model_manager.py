@@ -8,7 +8,7 @@ import utils.logger_visuals as logger_visuals
 
 class AbstractModelManager:
     def __init__(self, model_config_path, output_dir):
-        self.config_params = self.load_config(model_config_path)
+        self.config_params = self.load_model_config(model_config_path)
         self.model_name = self._generate_name()
         self.output_dir = os.path.join(output_dir, self.model_name)
         self.device = torch.device(
@@ -18,9 +18,10 @@ class AbstractModelManager:
         )
         self.model = self.init_model()
         self.model.to(self.device)
+        self.set_seed(self.config_params.get("seed", 42))
         self.init_logger()
 
-    def load_config(self, model_config_path) -> dict:
+    def load_model_config(self, model_config_path) -> dict:
         """Loads the configuration from a file."""
         # This will varying depending on the required configuration for the specific model
         raise NotImplementedError
