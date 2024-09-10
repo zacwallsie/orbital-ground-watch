@@ -41,6 +41,9 @@ class CustomFormatter(logging.Formatter):
 
 
 def setup_logger(name, level, output_dir):
+    # Ensure the output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
     # Create a logger
     logger = logging.getLogger(name)
     logger.setLevel(level)
@@ -50,10 +53,24 @@ def setup_logger(name, level, output_dir):
 
     # Create and add the custom handler
     ch = logging.StreamHandler()
-    file_handler = logging.FileHandler(os.path.join(output_dir, "log.txt"))
     ch.setLevel(level)
     ch.setFormatter(CustomFormatter())
     logger.addHandler(ch)
+
+    # Create the log file path
+    log_file_path = os.path.join(output_dir, "log.txt")
+
+    # Create the file handler
+    file_handler = logging.FileHandler(log_file_path, mode="a")
+    file_handler.setLevel(level)
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+            datefmt="%m/%d/%Y %H:%M:%S",
+        )
+    )
     logger.addHandler(file_handler)
+
+    logger.info(f"Logging to file: {log_file_path}")
 
     return logger

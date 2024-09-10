@@ -3,7 +3,7 @@ import tomllib
 import os
 from models.sunet import SNUNet_ECAM
 from utils.misc_utils import AverageMeter, logits_to_mask
-from abstract_model_manager import AbstractModelManager
+from ._abstract_model_manager import AbstractModelManager
 from utils.metric_tool import ConfuseMatrixMeter
 
 
@@ -13,6 +13,9 @@ class SnuNetModelManager(AbstractModelManager):
         super().__init__(
             toml_file_path, output_dir
         )  # Call to the abstract class constructor
+        self.logger.info(
+            f"Initialized SnuNetModelManager with output directory: {output_dir}"
+        )
 
     def _generate_name(self):
         # Generate a unique model name based on configurations
@@ -66,28 +69,28 @@ class SnuNetModelManager(AbstractModelManager):
             model.load_state_dict(torch.load(self.pretrained_dir), strict=False)
         return model
 
-    def predict(self, X):
+    def predict(self, xA, xB):
         # Implement model prediction on input data X
         self.set_mode("eval")
         with torch.no_grad():
-            return self.model(X.to(self.device))
+            return self.model(xA.to(self.device), xB.to(self.device))
 
     def evaluate(self, test_loader):
-        # Evaluate the model performance on the given dataset
         eval_losses = AverageMeter()
-
         salEval = ConfuseMatrixMeter(n_class=2)
 
-        for batch in test_loader:
-            with torch.no_grad():
+        self.set_mode("eval")
+        with torch.no_grad():
+            for batch in test_loader:
                 batch = tuple(t.to(self.device) for t in batch)
-                X, y = batch
-                predictions = self.model(X.to(self.device))
+                xA, xB, y = batch
+                predictions = self.model(xA, xB)
                 loss = self.criterion(predictions, y)
                 eval_losses.update(loss.item())
                 salEval.add(predictions, y)
 
         scores = salEval.get_scores()
+
         return {
             "accuracy": scores["accuracy"],
             "precision": scores["precision"],
@@ -111,36 +114,56 @@ class SnuNetModelManager(AbstractModelManager):
         num_steps,
         losses,
     ):
-        # Assign specific values for this class for training
         self.criterion = criterion
         self.optimizer = optimizer
         self.scheduler = scheduler
 
-        # Train the model
         self.set_mode("train")
         best_acc = 0
 
         for step in range(num_steps):
-            for batch in train_loader:
+            self.logger.info(f"Step {step+1}/{num_steps}")
+            batch_losses = AverageMeter()
+
+            for batch_idx, batch in enumerate(train_loader):
                 batch = tuple(t.to(self.device) for t in batch)
-                x, y = batch
-                output = self.model(x)
+                xA, xB, y = batch
+
+                output = self.model(xA, xB)
+
                 loss = criterion(output, y)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
+
+                batch_losses.update(loss.item())
                 losses.update(loss.item())
 
-                if step % self.eval_every == 0:
-                    metrics = self.evaluate(valid_loader)
-                    self.log_metrics(metrics)
-                    if metrics["accuracy"] > best_acc:
-                        best_acc = metrics["accuracy"]
-                        self.save(
-                            os.path.join(self.output_dir, "best_model_weights.pth")
-                        )
-                    self.save(os.path.join(self.output_dir, "last_model_weights.pth"))
+                if (batch_idx + 1) % 100 == 0:  # Log every 100 batches
+                    self.logger.info(f"  Batch {batch_idx+1}: Loss: {loss.item():.4f}")
+
+            self.logger.info(
+                f"Step {step+1} completed. Average Loss: {batch_losses.avg:.4f}"
+            )
+
+            if (step + 1) % self.eval_every == 0:
+                self.logger.info(f"Performing evaluation at step {step+1}")
+                metrics = self.evaluate(valid_loader)
+                self.log_metrics(metrics)
+                if metrics["accuracy"] > best_acc:
+                    best_acc = metrics["accuracy"]
+                    self.logger.info(
+                        f"New best accuracy: {best_acc:.4f}. Saving best model."
+                    )
+                    self.save(os.path.join(self.output_dir, "best_model_weights.pth"))
+                self.save(os.path.join(self.output_dir, "last_model_weights.pth"))
 
         losses.reset()
+        self.logger.info("Training completed")
         return
+
+    def save(self, path):
+        self.logger.info(f"Saving model to {path}")
+        torch.save(self.model.state_dict(), path)
+        self.logger.info("Model saved successfully")

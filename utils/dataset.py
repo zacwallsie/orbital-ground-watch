@@ -1,136 +1,137 @@
 import torch
-from torch.utils.data import Dataset, DataLoader, Subset
+from torch.utils.data import Dataset
 import numpy as np
 from sklearn.model_selection import train_test_split
 
 
 class NPYDataset(Dataset):
-    def __init__(self, data, masks):
-        self.data = data
-        self.masks = masks
+    def __init__(self, data1, data2, labels):
+        self.data1 = data1
+        self.data2 = data2
+        self.labels = labels
+        self.mean1, self.std1 = self.compute_mean_std(self.data1)
+        self.mean2, self.std2 = self.compute_mean_std(self.data2)
 
-        self.mean, self.std = self.compute_mean_std()
-
-    def compute_mean_std(self):
-        # Convert to PyTorch tensor and reshape
-        data_tensor = torch.from_numpy(self.data).float()
+    def compute_mean_std(self, data):
+        data_tensor = torch.from_numpy(data).float()
         mean = torch.mean(data_tensor, dim=[0, 2, 3])
         std = torch.std(data_tensor, dim=[0, 2, 3])
         return mean, std
 
     def __len__(self):
-        return len(self.data)
+        return len(self.data1)
 
     def __getitem__(self, idx):
-        image = self.data[idx]
-        mask = self.masks[idx]
+        image1 = self.data1[idx]
+        image2 = self.data2[idx]
+        label = self.labels[idx]
 
-        # Convert numpy arrays to PyTorch tensors
-        image = torch.from_numpy(image).float()
-        mask = torch.from_numpy(mask).long()
+        image1 = torch.from_numpy(image1).float()
+        image2 = torch.from_numpy(image2).float()
 
-        # Normalize images with calculated mean and std
-        image = (image - self.mean.view(-1, 1, 1)) / self.std.view(-1, 1, 1)
+        # Convert one-hot encoded mask to class indices
+        label = torch.from_numpy(label).float()
+        label = torch.argmax(label, dim=0).long()  # Convert to class indices
 
-        return image, mask
+        image1 = (image1 - self.mean1.view(-1, 1, 1)) / self.std1.view(-1, 1, 1)
+        image2 = (image2 - self.mean2.view(-1, 1, 1)) / self.std2.view(-1, 1, 1)
+
+        return image1, image2, label
 
 
 class NPYDatasetForPrediction(Dataset):
-    def __init__(self, data):
-        self.data = data
-        self.mean, self.std = self.compute_mean_std()
+    def __init__(self, data1, data2):
+        self.data1 = data1
+        self.data2 = data2
+        self.mean1, self.std1 = self.compute_mean_std(self.data1)
+        self.mean2, self.std2 = self.compute_mean_std(self.data2)
 
-    def compute_mean_std(self):
-        # Convert to PyTorch tensor and reshape
-        data_tensor = torch.from_numpy(self.data).float()
+    def compute_mean_std(self, data):
+        data_tensor = torch.from_numpy(data).float()
         mean = torch.mean(data_tensor, dim=[0, 2, 3])
         std = torch.std(data_tensor, dim=[0, 2, 3])
         return mean, std
 
     def __len__(self):
-        return len(self.data)
+        return len(self.data1)
 
     def __getitem__(self, idx):
-        image = self.data[idx]
+        image1 = self.data1[idx]
+        image2 = self.data2[idx]
 
-        # Convert numpy array to PyTorch tensor
-        image = torch.from_numpy(image).float()
+        image1 = torch.from_numpy(image1).float()
+        image2 = torch.from_numpy(image2).float()
 
-        # Normalize images with calculated mean and std
-        image = (image - self.mean.view(-1, 1, 1)) / self.std.view(-1, 1, 1)
+        image1 = (image1 - self.mean1.view(-1, 1, 1)) / self.std1.view(-1, 1, 1)
+        image2 = (image2 - self.mean2.view(-1, 1, 1)) / self.std2.view(-1, 1, 1)
 
-        return image
+        return image1, image2
 
 
-def create_data_loaders(
-    data_path,
-    mask_path,
-    batch_size,
+def create_datasets(
+    data1_path,
+    data2_path,
+    labels_path,
     test_split=0.15,
     validation_split=0.15,
     random_state=42,
 ):
-    # Load data from .npy files
-    all_data = np.load(data_path)
-    all_masks = np.load(mask_path)
+    data1 = np.load(data1_path)
+    data2 = np.load(data2_path)
+    labels = np.load(labels_path)
 
-    permuted_data = np.transpose(all_data, (0, 3, 1, 2))
-    permuted_masks = np.transpose(all_masks, (0, 3, 1, 2))
+    # Ensure all arrays have the same number of samples
+    assert (
+        data1.shape[0] == data2.shape[0] == labels.shape[0]
+    ), "Number of samples in all arrays must match"
 
-    # First split: separate out the test set
-    # Note we take the validation in this split too as a subset will then be taken for val
-    train_data, test_val_data, train_masks, test_val_masks = train_test_split(
-        permuted_data,
-        permuted_masks,
+    # Ensure the spatial dimensions (H and W) match for all arrays
+    assert (
+        data1.shape[2:] == data2.shape[2:] == labels.shape[2:]
+    ), "Spatial dimensions (H and W) must match for all arrays"
+
+    (
+        train_data1,
+        test_val_data1,
+        train_data2,
+        test_val_data2,
+        train_labels,
+        test_val_labels,
+    ) = train_test_split(
+        data1,
+        data2,
+        labels,
         test_size=test_split + validation_split,
         random_state=random_state,
     )
-    # Further split the training data into training and validation sets
-    test_data, val_data, test_masks, val_masks = train_test_split(
-        test_val_data,
-        test_val_masks,
-        test_size=1 - (validation_split / (test_split + validation_split)),
-        random_state=random_state,
+
+    test_data1, val_data1, test_data2, val_data2, test_labels, val_labels = (
+        train_test_split(
+            test_val_data1,
+            test_val_data2,
+            test_val_labels,
+            test_size=validation_split / (test_split + validation_split),
+            random_state=random_state,
+        )
     )
 
-    # Create dataset objects
-    train_dataset = NPYDataset(train_data, train_masks)
-    test_dataset = NPYDataset(test_data, test_masks)
-    val_dataset = NPYDataset(val_data, val_masks)
+    train_dataset = NPYDataset(train_data1, train_data2, train_labels)
+    test_dataset = NPYDataset(test_data1, test_data2, test_labels)
+    val_dataset = NPYDataset(val_data1, val_data2, val_labels)
 
-    # Create DataLoaders
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-
-    return train_loader, test_loader, val_loader
+    return train_dataset, test_dataset, val_dataset
 
 
-def create_entire_set_loaders(data_path, mask_path, batch_size):
-    # Load data from .npy files
-    all_data = np.load(data_path)
-    all_masks = np.load(mask_path)
+def create_entire_dataset(data1_path, data2_path, labels_path):
+    data1 = np.load(data1_path)
+    data2 = np.load(data2_path)
+    labels = np.load(labels_path)
 
-    # Create dataset objects
-    total_dataset = NPYDataset(all_data, all_masks)
-
-    total_loader = DataLoader(total_dataset, batch_size=batch_size, shuffle=False)
-
-    return total_loader
+    return NPYDataset(data1, data2, labels)
 
 
-def create_entire_prediction_loader(data_path, batch_size):
-    # Load data from .npy file
-    all_data = np.load(data_path)
+def create_prediction_dataset(data1_path, data2_path):
+    data1 = np.load(data1_path)
+    data2 = np.load(data2_path)
 
-    permuted_data = np.transpose(all_data, (0, 3, 1, 2))
-
-    # Create dataset object
-    prediction_dataset = NPYDatasetForPrediction(permuted_data)
-
-    # Create DataLoader
-    prediction_loader = DataLoader(
-        prediction_dataset, batch_size=batch_size, shuffle=False
-    )
-
-    return prediction_loader
+    return NPYDatasetForPrediction(data1, data2)
